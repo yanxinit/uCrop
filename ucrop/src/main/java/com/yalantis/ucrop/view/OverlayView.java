@@ -12,17 +12,18 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 
+import androidx.annotation.ColorInt;
+import androidx.annotation.IntDef;
+import androidx.annotation.IntRange;
+import androidx.annotation.NonNull;
+import androidx.core.util.Pair;
+
 import com.yalantis.ucrop.R;
 import com.yalantis.ucrop.callback.OverlayViewChangeListener;
 import com.yalantis.ucrop.util.RectUtils;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-
-import androidx.annotation.ColorInt;
-import androidx.annotation.IntDef;
-import androidx.annotation.IntRange;
-import androidx.annotation.NonNull;
 
 /**
  * Created by Oleksii Shliama (https://github.com/shliama).
@@ -55,6 +56,7 @@ public class OverlayView extends View {
     private float[] mGridPoints = null;
     private boolean mShowCropFrame, mShowCropGrid;
     private boolean mCircleDimmedLayer;
+    private boolean mKeepAspectRatio;
     private int mDimmedColor;
     private Path mCircularPath = new Path();
     private Paint mDimmedStrokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -119,6 +121,10 @@ public class OverlayView extends View {
      */
     public void setFreestyleCropEnabled(boolean freestyleCropEnabled) {
         mFreestyleCropMode = freestyleCropEnabled ? FREESTYLE_CROP_MODE_ENABLE : FREESTYLE_CROP_MODE_DISABLE;
+    }
+
+    public void setKeepAspectRatio(boolean keep) {
+        mKeepAspectRatio = keep;
     }
 
     @FreestyleMode
@@ -354,6 +360,47 @@ public class OverlayView extends View {
     }
 
     /**
+     * @param corner mCurrentTouchCornerIndex
+     * @param ratio  mTargetAspectRatio, w/h
+     * @param x      original touchX
+     * @param y      original touchY
+     * @param rect   mCropViewRect
+     * @return newTouchX, newTouchY for OverlayView#updateCropViewRect
+     */
+    @NonNull
+    private Pair<Float, Float> newPositionForUpdateCropViewRect(
+            int corner,
+            float ratio,
+            float x,
+            float y,
+            RectF rect
+    ) {
+        if (corner == 4) return new Pair<>(x, y);
+
+        float k = 1f / ratio;
+
+        if (corner == 1 || corner == 3) k = -k;
+
+        float w;
+        if (corner == 0 || corner == 3)
+            w = rect.left;
+        else
+            w = rect.right;
+
+        float h;
+        if (corner == 0 || corner == 1)
+            h = rect.top;
+        else
+            h = rect.bottom;
+
+        float kk1 = k * k + 1;
+        float tx = ((w * k + y - h) * k + x) / kk1;
+        float ty = ((y * k + x - w) * k + h) / kk1;
+
+        return new Pair<>(tx, ty);
+    }
+
+    /**
      * * The order of the corners is:
      * 0------->1
      * ^        |
@@ -362,6 +409,12 @@ public class OverlayView extends View {
      * 3<-------2
      */
     private void updateCropViewRect(float touchX, float touchY) {
+        if (mKeepAspectRatio) {
+            Pair<Float, Float> pair = newPositionForUpdateCropViewRect(mCurrentTouchCornerIndex, mTargetAspectRatio, touchX, touchY, mCropViewRect);
+            touchX = pair.first;
+            touchY = pair.second;
+        }
+
         mTempRect.set(mCropViewRect);
 
         switch (mCurrentTouchCornerIndex) {
