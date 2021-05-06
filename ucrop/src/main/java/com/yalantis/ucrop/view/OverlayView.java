@@ -334,6 +334,12 @@ public class OverlayView extends View {
         if ((event.getAction() & MotionEvent.ACTION_MASK) == MotionEvent.ACTION_MOVE) {
             if (event.getPointerCount() == 1 && mCurrentTouchCornerIndex != -1) {
 
+                if (mKeepAspectRatio) {
+                    Pair<Float, Float> pair = newPositionForUpdateCropViewRect(mCurrentTouchCornerIndex, mTargetAspectRatio, x, y, mCropViewRect);
+                    x = pair.first;
+                    y = pair.second;
+                }
+
                 x = Math.min(Math.max(x, getPaddingLeft()), getWidth() - getPaddingRight());
                 y = Math.min(Math.max(y, getPaddingTop()), getHeight() - getPaddingBottom());
 
@@ -409,12 +415,6 @@ public class OverlayView extends View {
      * 3<-------2
      */
     private void updateCropViewRect(float touchX, float touchY) {
-        if (mKeepAspectRatio) {
-            Pair<Float, Float> pair = newPositionForUpdateCropViewRect(mCurrentTouchCornerIndex, mTargetAspectRatio, touchX, touchY, mCropViewRect);
-            touchX = pair.first;
-            touchY = pair.second;
-        }
-
         mTempRect.set(mCropViewRect);
 
         switch (mCurrentTouchCornerIndex) {
